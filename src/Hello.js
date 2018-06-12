@@ -1,8 +1,7 @@
 import React from "react";
-import { create, Tree } from "microstates";
-import { map, filter, flatMap, append } from "funcadelic";
-import { User } from './index';
-const { keys } = Object;
+import { create } from "microstates";
+import { User } from "./index";
+import withMicrostate from "./withMicrostate";
 
 class Greeter {
   salutation = String;
@@ -16,86 +15,33 @@ class Greeter {
   }
 }
 
-function withMicrostate(
-  Component,
-  { initialState, getMicrostatesFromProps = s => s }
-) {
-  class WrappedComponent extends React.Component {
-    state = {
-      microstate: map(
-        root =>
-          root.use(next => (...args) => {
-            let nextState = next(...args);
-            this.setState({ microstate: nextState });
-            return nextState;
-          }),
-        initialState
-      )
-    };
-
-    static getDerivedStateFromProps(props, state) {
-      let { microstate } = state;
-
-      let derived = getMicrostatesFromProps(props, state);
-
-      let changed = filter(prop => {
-        return (
-          !microstate[prop.key] ||
-          (microstate[prop.key] &&
-            microstate[prop.key].valueOf() !== prop.value.valueOf())
-        );
-      }, derived);
-
-      if (keys(changed).length > 0) {
-        let combined = map(treeRoot => {
-          return flatMap(tree => {
-            if (tree.is(treeRoot)) {
-              return tree.assign({
-                meta: {
-                  children() {
-                    let newChildren = map(state => Tree.from(state), changed);
-                    return append(tree.children, newChildren);
-                  }
-                }
-              });
-            } else {
-              return tree;
-            }
-          }, treeRoot);
-        }, microstate);
-
-        return {
-          microstate: combined
-        };
-      } else {
-        return null;
-      }
-    }
-
-    render() {
-      return <Component {...this.props} microstate={this.state.microstate} />;
-    }
-  }
-
-  return WrappedComponent;
-}
-
 export default withMicrostate(
   ({ microstate }) => (
     <fieldset>
       <legend>COMPONENT</legend>
       <p>{microstate.state.message}</p>
-      <label>
-        Change salutation:{" "}
-        <input
-          onChange={e => microstate.salutation.set(e.target.value)}
-          value={microstate.salutation.state}
-        />
-      </label>
+      <p>
+        <label>
+          Change salutation:{" "}
+          <input
+            onChange={e => microstate.salutation.set(e.target.value)}
+            value={microstate.salutation.state}
+          />
+        </label>
+      </p>
+      <p>
+        <label>
+          Change first name:{" "}
+          <input
+            onChange={e => microstate.user.firstName.set(e.target.value)}
+            value={microstate.user.firstName.state}
+          />
+        </label>
+      </p>
     </fieldset>
   ),
   {
-    initialState: create(Greeter, { salutation: "Hello" }),
+    initial: create(Greeter, { salutation: "Hello" }),
     getMicrostatesFromProps: ({ user }) => ({ user })
   }
 );
