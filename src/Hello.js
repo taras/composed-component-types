@@ -6,9 +6,11 @@ import withMicrostate from "./withMicrostate";
 class Greeter {
   salutation = String;
   user = User;
+
   get updated() {
     return new Date().toLocaleTimeString();
   }
+  
   get message() {
     if (this.user) {
       return `${this.salutation} ${this.user.fullName}`;
@@ -47,9 +49,4 @@ const Hello = ({ microstate }) => (
   </fieldset>
 )
 
-export default withMicrostate(Hello,
-  {
-    initial: create(Greeter, { salutation: "Hello" }),
-    getMicrostatesFromProps: ({ user }) => ({ user })
-  }
-);
+export default withMicrostate(Hello, create(Greeter, { salutation: "Hello" }));

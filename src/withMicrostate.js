@@ -1,13 +1,9 @@
-import React from 'react';
-import { Tree, from } from "microstates";
-import { map, filter, flatMap, append } from "funcadelic";
-const { keys } = Object;
+import React from "react";
+import { Tree, Microstate } from "microstates";
+import { map, flatMap, append, foldl } from "funcadelic";
+const { keys, assign } = Object;
 
-
-export default function withMicrostate(
-  Component,
-  { initial = from({}), getMicrostatesFromProps = s => s }
-) {
+export default function withMicrostate(Component, initial) {
   class WrappedComponent extends React.Component {
     state = {
       microstate: map(
@@ -23,7 +19,9 @@ export default function withMicrostate(
               // compare that this transition will actually change the value
               // if it doesn't then we can treat it as a no-op
               let contextFreeTarget = contextTarget.prune();
-              let nextValue = contextFreeTarget.microstate[transition.name](...args);
+              let nextValue = contextFreeTarget.microstate[transition.name](
+                ...args
+              );
               let computedNextValueTree = Tree.from(nextValue);
               if (computedNextValueTree.isEqual(contextFreeTarget)) {
                 // value has not change, it's a no-op
@@ -43,48 +41,47 @@ export default function withMicrostate(
     };
 
     static getDerivedStateFromProps(props, state) {
-      let { microstate } = state;
+      let microstate = map(treeRoot => {
+        return flatMap(tree => {
+          if (tree.is(treeRoot)) {
+            return tree.assign({
+              meta: {
+                children() {
+                  let newChildren = foldl(
+                    (memo, childName) => {
+                      let child = tree.children && tree.children[childName];
+                      let prop = props[childName];
+                      if (prop && prop instanceof Microstate) {
+                        let incomingTree = Tree.from(prop);
+                        return assign(memo, {
+                          [childName]:
+                            child && child.isEqual(incomingTree)
+                              ? child
+                              : map(tree => tree.assign({ meta: { context: tree.root } }), incomingTree)
+                        });
+                      } else {
+                        return child
+                          ? assign(memo, { [childName]: child })
+                          : memo;
+                      }
+                    },
+                    {},
+                    keys(tree.microstate.state)
+                  );
 
-      let fromProps = getMicrostatesFromProps(props, state);
-
-      let changed = filter(prop => {
-        return (
-          !microstate[prop.key] ||
-          (microstate[prop.key] &&
-            microstate[prop.key].valueOf() !== prop.value.valueOf())
-        );
-      }, fromProps);
-
-      if (keys(changed).length > 0) {
-        let combined = map(treeRoot => {
-          return flatMap(tree => {
-            if (tree.is(treeRoot)) {
-              return tree.assign({
-                meta: {
-                  children() {
-                    let newChildren = map(state => {
-                      return map(tree => tree.assign({ 
-                        meta: {
-                          context: tree.root
-                        }                
-                      }), Tree.from(state));
-                    }, changed);
-                    return append(tree.children, newChildren);
-                  }
+                  return append(tree.children, newChildren);
                 }
-              });
-            } else {
-              return tree;
-            }
-          }, treeRoot);
-        }, microstate);
+              }
+            });
+          } else {
+            return tree;
+          }
+        }, treeRoot);
+      }, state.microstate);
 
-        return {
-          microstate: combined
-        };
-      } else {
-        return null;
-      }
+      return {
+        microstate
+      };
     }
 
     render() {

@@ -1,7 +1,8 @@
+import { create } from "microstates";
 import React from "react";
 import { render } from "react-dom";
 import Hello from "./Hello";
-import State from "@microstates/react";
+import withMicrostate from "./withMicrostate";
 
 class Preferences {
   givenNameFirst = Boolean;
@@ -33,7 +34,7 @@ class MyApp {
   session = Session;
 }
 
-const initialState = {
+let initial = create(MyApp, {
   session: {
     user: {
       firstName: "Taras",
@@ -41,29 +42,27 @@ const initialState = {
       preferences: { givenNameFirst: true }
     }
   }
-};
+});
 
-const App = ({ initialState }) => (
-  <State type={MyApp} value={initialState}>
-    {app => {
-      return (
-        <fieldset>
-          <legend>Parent</legend>
-          <h2>{app.session.user.state.fullName}</h2>
-          <div>
-            Preferences last updated:{" "}
-            {app.session.user.preferences.state.lastUpdated}
-          </div>
-          <p>
-          <label>
-            Show given name first? <input type="checkbox" checked={app.session.user.preferences.givenNameFirst.state} onChange={() => app.session.user.preferences.givenNameFirst.toggle()} />
-          </label>
-          </p>
-          <Hello user={app.session.user} />
-        </fieldset>
-      );
-    }}
-  </State>
-);
+let App = withMicrostate(({ microstate: app }) => (
+  <fieldset>
+    <legend>Parent</legend>
+    <h2>{app.session.user.state.fullName}</h2>
+    <div>
+      Preferences last updated: {app.session.user.preferences.state.lastUpdated}
+    </div>
+    <p>
+      <label>
+        Show given name first?{" "}
+        <input
+          type="checkbox"
+          checked={app.session.user.preferences.givenNameFirst.state}
+          onChange={() => app.session.user.preferences.givenNameFirst.toggle()}
+        />
+      </label>
+    </p>
+    <Hello user={app.session.user} />
+  </fieldset>
+), initial);
 
-render(<App initialState={initialState} />, document.getElementById("root"));
+render(<App />, document.getElementById("root"));
