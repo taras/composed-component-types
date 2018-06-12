@@ -3,11 +3,6 @@ import { render } from "react-dom";
 import Hello from "./Hello";
 import State from "@microstates/react";
 
-const styles = {
-  fontFamily: "sans-serif",
-  textAlign: "center"
-};
-
 class Preferences {
   givenNameFirst = Boolean;
 
@@ -16,7 +11,7 @@ class Preferences {
   }
 }
 
-class User {
+export class User {
   firstName = String;
   lastName = String;
   preferences = Preferences;
@@ -52,14 +47,20 @@ const App = ({ initialState }) => (
   <State type={MyApp} value={initialState}>
     {app => {
       return (
-        <div style={styles}>
+        <fieldset>
+          <legend>Parent</legend>
           <h2>{app.session.user.state.fullName}</h2>
           <div>
             Preferences last updated:{" "}
             {app.session.user.preferences.state.lastUpdated}
           </div>
+          <p>
+          <label>
+            Show given name first? <input type="checkbox" checked={app.session.user.preferences.givenNameFirst.state} onChange={() => app.session.user.preferences.givenNameFirst.toggle()} />
+          </label>
+          </p>
           <Hello user={app.session.user} />
-        </div>
+        </fieldset>
       );
     }}
   </State>

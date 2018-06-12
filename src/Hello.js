@@ -1,13 +1,15 @@
 import React from "react";
-import { create, map } from "microstates";
-import { filter, flatMap, append } from "funcadelic";
-
+import { create, Tree } from "microstates";
+import { map, filter, flatMap, append } from "funcadelic";
+import { User } from './index';
 const { keys } = Object;
 
 class Greeter {
+  salutation = String;
+  user = User;
   get message() {
     if (this.user) {
-      return `Hello ${this.user.fullName}`;
+      return `${this.salutation} ${this.user.fullName}`;
     } else {
       return `no message`;
     }
@@ -16,7 +18,7 @@ class Greeter {
 
 function withMicrostate(
   Component,
-  { initialState, getDerivedStateFromProps = s => s }
+  { initialState, getMicrostatesFromProps = s => s }
 ) {
   class WrappedComponent extends React.Component {
     state = {
@@ -24,7 +26,7 @@ function withMicrostate(
         root =>
           root.use(next => (...args) => {
             let nextState = next(...args);
-            this.setState({ state: nextState });
+            this.setState({ microstate: nextState });
             return nextState;
           }),
         initialState
@@ -34,34 +36,36 @@ function withMicrostate(
     static getDerivedStateFromProps(props, state) {
       let { microstate } = state;
 
-      let derived = getDerivedStateFromProps(props, state);
+      let derived = getMicrostatesFromProps(props, state);
 
-      let changed = filter(
-        prop =>
-          microstate[prop.key] &&
-          microstate[prop.key].valueOf() !== prop.value.valueOf(),
-        derived
-      );
+      let changed = filter(prop => {
+        return (
+          !microstate[prop.key] ||
+          (microstate[prop.key] &&
+            microstate[prop.key].valueOf() !== prop.value.valueOf())
+        );
+      }, derived);
 
       if (keys(changed).length > 0) {
-        return {
-          state: flatMap(
-            root =>
-              flatMap(tree => {
-                if (tree.is(root)) {
-                  return tree.assign({
-                    meta: {
-                      children() {
-                        return append(tree.children, changed);
-                      }
-                    }
-                  });
-                } else {
-                  return tree;
+        let combined = map(treeRoot => {
+          return flatMap(tree => {
+            if (tree.is(treeRoot)) {
+              return tree.assign({
+                meta: {
+                  children() {
+                    let newChildren = map(state => Tree.from(state), changed);
+                    return append(tree.children, newChildren);
+                  }
                 }
-              }, root),
-            state
-          )
+              });
+            } else {
+              return tree;
+            }
+          }, treeRoot);
+        }, microstate);
+
+        return {
+          microstate: combined
         };
       } else {
         return null;
@@ -77,11 +81,21 @@ function withMicrostate(
 }
 
 export default withMicrostate(
-  ({ microstate }) => {
-    return microstate.state.message;
-  },
+  ({ microstate }) => (
+    <fieldset>
+      <legend>COMPONENT</legend>
+      <p>{microstate.state.message}</p>
+      <label>
+        Change salutation:{" "}
+        <input
+          onChange={e => microstate.salutation.set(e.target.value)}
+          value={microstate.salutation.state}
+        />
+      </label>
+    </fieldset>
+  ),
   {
-    initialState: create(Greeter, {}),
-    getDerivedStateFromProps: ({ session }) => ({ session })
+    initialState: create(Greeter, { salutation: "Hello" }),
+    getMicrostatesFromProps: ({ user }) => ({ user })
   }
 );
