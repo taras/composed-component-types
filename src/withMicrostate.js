@@ -1,7 +1,6 @@
 import React from "react";
 import { Tree, Microstate } from "microstates";
-import { map, flatMap, append, foldl } from "funcadelic";
-const { keys, assign } = Object;
+import { map, flatMap, append } from "funcadelic";
 
 export default function withMicrostate(Component, initial) {
   class WrappedComponent extends React.Component {
@@ -47,27 +46,21 @@ export default function withMicrostate(Component, initial) {
             return tree.assign({
               meta: {
                 children() {
-                  let newChildren = foldl(
-                    (memo, childName) => {
-                      let child = tree.children && tree.children[childName];
-                      let prop = props[childName];
-                      if (prop && prop instanceof Microstate) {
-                        let incomingTree = Tree.from(prop);
-                        return assign(memo, {
-                          [childName]:
-                            child && child.isEqual(incomingTree)
-                              ? child
-                              : map(tree => tree.assign({ meta: { context: tree.root } }), incomingTree)
-                        });
-                      } else {
-                        return child
-                          ? assign(memo, { [childName]: child })
-                          : memo;
-                      }
-                    },
-                    {},
-                    keys(tree.microstate.state)
-                  );
+
+                  // map the state cause it has all of the composed types
+                  let newChildren = map((state, childName) => {
+                    // ignore the actual state cause we don't really need the state value
+                    let child = tree.children && tree.children[childName];
+                    let prop = props[childName];
+                    if (prop && prop instanceof Microstate) {
+                      let incomingTree = Tree.from(prop);
+                      return child && child.isEqual(incomingTree)
+                        ? child
+                        : map(tree => tree.assign({ meta: { context: tree.root } }), incomingTree);
+                    } else {
+                      return child;
+                    }
+                  }, tree.microstate.state);
 
                   return append(tree.children, newChildren);
                 }
