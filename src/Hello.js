@@ -6,6 +6,9 @@ import withMicrostate from "./withMicrostate";
 class Greeter {
   salutation = String;
   user = User;
+  get updated() {
+    return new Date().toLocaleTimeString();
+  }
   get message() {
     if (this.user) {
       return `${this.salutation} ${this.user.fullName}`;
@@ -15,31 +18,36 @@ class Greeter {
   }
 }
 
-export default withMicrostate(
-  ({ microstate }) => (
-    <fieldset>
-      <legend>COMPONENT</legend>
-      <p>{microstate.state.message}</p>
-      <p>
-        <label>
-          Change salutation:{" "}
-          <input
-            onChange={e => microstate.salutation.set(e.target.value)}
-            value={microstate.salutation.state}
-          />
-        </label>
-      </p>
-      <p>
-        <label>
-          Change first name:{" "}
-          <input
-            onChange={e => microstate.user.firstName.set(e.target.value)}
-            value={microstate.user.firstName.state}
-          />
-        </label>
-      </p>
-    </fieldset>
-  ),
+const Hello = ({ microstate }) => (
+  <fieldset>
+    <legend>COMPONENT</legend>
+    <p>{microstate.state.message}</p>
+    <p>
+      <label>
+        Change salutation:{" "}
+        <input
+          onChange={e => microstate.salutation.set(e.target.value)}
+          value={microstate.salutation.state}
+        />
+      </label>
+    </p>
+    <p>
+      <label>
+        Change first name:{" "}
+        <input
+          onChange={e => microstate.user.firstName.set(e.target.value)}
+          onBlur={e => microstate.user.firstName.set(e.target.value)}
+          value={microstate.user.firstName.state}
+        />
+      </label>
+    </p>
+    <p>
+      Last updated: {microstate.state.updated}
+    </p>
+  </fieldset>
+)
+
+export default withMicrostate(Hello,
   {
     initial: create(Greeter, { salutation: "Hello" }),
     getMicrostatesFromProps: ({ user }) => ({ user })
